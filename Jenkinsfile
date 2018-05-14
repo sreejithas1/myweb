@@ -1,20 +1,23 @@
-node{
-    stage('SCM Checkout'){
-      git changelog: false, poll: false, url: 'https://github.com/javahometech/myweb'   
-    }
-    def mvnHome = tool name: 'maven-3', type: 'maven'
-    stage('Test'){
-         sh "${mvnHome}/bin/mvn test"
-    }
-    stage('Package'){
-         sh "${mvnHome}/bin/mvn package"
-    }
-    stage('Deploy To Tomcat'){
-        sh '/home/ec2-user/scripts/sftp_tomcat.sh'
-    }
-    stage('Email'){
-        mail bcc: '', body: '''Thanks
-Java Home''', cc: '', from: '', replyTo: '', subject: 'MyWeb Deployed', to: 'hari.kammana@gmail.com'
-    }
-    
+node {
+   def mvnHome
+   stage('Preparation') { // for display purposes
+      // Get some code from a GitHub repository
+      git 'https://github.com/sreejithas1/myweb.git'
+      // Get the Maven tool.
+      // ** NOTE: This 'M3' Maven tool must be configured
+      // **       in the global configuration.           
+      mvnHome = tool name: 'maven3', type: 'maven'
+   }
+   stage('Build') {
+      // Run the maven build
+      if (isUnix()) {
+         sh "'${mvnHome}/bin/mvn' -Dmaven.test.failure.ignore clean package"
+      } else {
+         bat(/"${mvnHome}\bin\mvn" -Dmaven.test.failure.ignore clean package/)
+      }
+   }
+   stage('Results') {
+      junit '**/target/surefire-reports/TEST-*.xml'
+      archive 'target/*.jar'
+   }
 }
